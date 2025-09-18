@@ -18,6 +18,8 @@ React box breathing app with Vite + shadcn/ui. 4-4-4-4 breathing technique for r
 - Avoid `any`, use proper typing
 - Components in `src/components/`, one per file
 - Group imports: React → third-party → local
+- **No unnecessary comments**: Use descriptive variable/function names instead
+- Only comment when logic is inherently complex or non-obvious
 
 ## App-Specific
 - 4-second breathing phases with smooth animations
