@@ -6,99 +6,79 @@ interface BreathingExerciseProps {
 }
 
 export function BreathingExercise({ onComplete }: BreathingExerciseProps) {
+  const [countdown, setCountdown] = useState(3);
+  const [isCountingDown, setIsCountingDown] = useState(true);
   const [currentBreath, setCurrentBreath] = useState(1);
-  const [currentPhase, setCurrentPhase] = useState<'inhale' | 'hold1' | 'exhale' | 'hold2'>('inhale');
-  const [phaseProgress, setPhaseProgress] = useState(0);
+  const [progress, setProgress] = useState(0);
   const totalBreaths = 6;
 
-  const phaseLabels = {
-    inhale: 'Inhale…',
-    hold1: 'Hold…',
-    exhale: 'Exhale…',
-    hold2: 'Hold…'
-  };
+  const boxSize = 300;
 
-  const squareSize = 300;
-  const dotSize = 12;
-  const borderWidth = 2; // Account for border thickness
+  // Simple dot position calculation - travels around the perimeter
+  const getDotPosition = (progress: number) => {
+    const sideProgress = (progress * 4) % 1;
+    const side = Math.floor(progress * 4) % 4;
 
-  // Calculate dot position based on phase and progress
-  const getDotPosition = (phase: typeof currentPhase, progress: number) => {
-    // Adjust for dot size so it appears centered on the border
-    const halfDot = dotSize / 2;
-    const adjustedSize = squareSize - borderWidth;
-
-    switch (phase) {
-      case 'inhale': // Top edge (left → right)
-        return {
-          x: (progress * adjustedSize) - halfDot + borderWidth,
-          y: -halfDot + borderWidth
-        };
-      case 'hold1': // Right edge (top → bottom)
-        return {
-          x: adjustedSize - halfDot + borderWidth,
-          y: (progress * adjustedSize) - halfDot + borderWidth
-        };
-      case 'exhale': // Bottom edge (right → left)
-        return {
-          x: adjustedSize - (progress * adjustedSize) - halfDot + borderWidth,
-          y: adjustedSize - halfDot + borderWidth
-        };
-      case 'hold2': // Left edge (bottom → top)
-        return {
-          x: -halfDot + borderWidth,
-          y: adjustedSize - (progress * adjustedSize) - halfDot + borderWidth
-        };
+    switch (side) {
+      case 0: // Top: left to right (center on top border)
+        return { x: sideProgress * boxSize, y: -1 };
+      case 1: // Right: top to bottom (center on right border)
+        return { x: boxSize - 3, y: sideProgress * boxSize };
+      case 2: // Bottom: right to left (center on bottom border)
+        return { x: boxSize - (sideProgress * boxSize) - 5, y: boxSize - 3 };
+      case 3: // Left: bottom to top (center on left border)
+        return { x: -2, y: boxSize - (sideProgress * boxSize) - 1 };
       default:
-        return { x: -halfDot + borderWidth, y: -halfDot + borderWidth };
+        return { x: -1, y: -1 };
     }
   };
 
   useEffect(() => {
-    const phases: Array<typeof currentPhase> = ['inhale', 'hold1', 'exhale', 'hold2'];
-    let phaseIndex = 0;
+    if (isCountingDown) {
+      if (countdown > 0) {
+        const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+        return () => clearTimeout(timer);
+      } else {
+        setIsCountingDown(false);
+      }
+    }
+  }, [isCountingDown, countdown]);
+
+  useEffect(() => {
+    if (isCountingDown) return;
+
     let breathCount = 1;
     let startTime = Date.now();
-    const phaseDuration = 4000; // 4 seconds per phase
+    const cycleDuration = 16000; // 16 seconds total (4 seconds per side)
 
     const updateAnimation = () => {
       const now = Date.now();
       const elapsed = now - startTime;
-      const progress = Math.min(elapsed / phaseDuration, 1);
+      const cycleProgress = (elapsed % cycleDuration) / cycleDuration;
 
-      setPhaseProgress(progress);
+      setProgress(cycleProgress);
 
-      if (progress >= 1) {
-        // Move to next phase
-        phaseIndex++;
+      // Debug logging
+      console.log('Progress:', cycleProgress, 'Dot position:', getDotPosition(cycleProgress));
+
+      // Complete breath cycle every 16 seconds
+      if (elapsed >= cycleDuration) {
+        breathCount++;
+        setCurrentBreath(breathCount);
         startTime = now;
 
-        if (phaseIndex >= phases.length) {
-          phaseIndex = 0;
-          breathCount++;
-          setCurrentBreath(breathCount);
-
-          if (breathCount > totalBreaths) {
-            setTimeout(onComplete, 1000);
-            return;
-          }
+        if (breathCount > totalBreaths) {
+          setTimeout(onComplete, 1000);
+          return;
         }
-
-        setCurrentPhase(phases[phaseIndex]);
-        setPhaseProgress(0);
       }
 
       requestAnimationFrame(updateAnimation);
     };
 
     const animationId = requestAnimationFrame(updateAnimation);
-
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [onComplete]);
+    return () => cancelAnimationFrame(animationId);
+  }, [isCountingDown, onComplete]);
 
   return (
     <motion.div
@@ -111,7 +91,6 @@ export function BreathingExercise({ onComplete }: BreathingExerciseProps) {
         background: `linear-gradient(45deg, rgba(56, 178, 172, 0.1), rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1), rgba(34, 197, 94, 0.1))`,
       }}
     >
-
       {/* Floating particles for ambiance */}
       {[...Array(5)].map((_, i) => (
         <motion.div
@@ -135,52 +114,60 @@ export function BreathingExercise({ onComplete }: BreathingExerciseProps) {
       ))}
 
       <div className="relative">
-        {/* Square outline */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 1 }}
-          className="relative border-2 border-teal-400/60 rounded-lg shadow-2xl"
+          className="relative"
           style={{
-            width: squareSize,
-            height: squareSize,
+            width: boxSize,
+            height: boxSize,
+            border: '2px solid rgba(56, 178, 172, 0.8)',
             filter: 'drop-shadow(0 0 20px rgba(56, 178, 172, 0.3))',
           }}
         >
-          {/* Animated dot */}
-          <motion.div
-            className="absolute w-3 h-3 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full shadow-lg"
-            style={{
-              filter: 'drop-shadow(0 0 8px rgba(56, 178, 172, 0.8))',
-              ...getDotPosition(currentPhase, phaseProgress),
-            }}
-          />
-        </motion.div>
-
-        {/* Phase guidance text */}
-        <motion.div
-          key={currentPhase}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.5 }}
-          className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
-        >
-          <p className="text-2xl text-slate-600 font-light">
-            {phaseLabels[currentPhase]}
-          </p>
+          {isCountingDown ? (
+            <motion.div
+              key={countdown}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0 flex items-center justify-center"
+              style={{
+                color: '#374151',
+                fontSize: '60px',
+                fontWeight: '300',
+              }}
+            >
+              {countdown > 0 ? countdown : "Begin"}
+            </motion.div>
+          ) : (
+            <div
+              className="absolute bg-red-500 rounded-full z-50"
+              style={{
+                width: '20px',
+                height: '20px',
+                left: getDotPosition(progress).x - 10,
+                top: getDotPosition(progress).y - 10,
+                boxShadow: '0 0 20px rgba(239, 68, 68, 1)',
+                border: '2px solid white',
+              }}
+            />
+          )}
         </motion.div>
       </div>
 
-      {/* Breath counter */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
-        className="absolute bottom-20 text-slate-500"
-      >
-        <p>Breath {currentBreath} of {totalBreaths}</p>
-      </motion.div>
+      {!isCountingDown && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="absolute bottom-20 text-slate-600 font-light"
+        >
+          <p>Breath {currentBreath} of {totalBreaths}</p>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
