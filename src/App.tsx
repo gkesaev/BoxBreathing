@@ -223,11 +223,19 @@ export default function App() {
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{
-            scale: state === 'breathing' ? [1, 1.02, 1] : 1,
+            scale: state === 'idle'
+              ? [0.95, 1.05, 0.95]
+              : state === 'breathing'
+                ? [1, 1.02, 1]
+                : 1,
             opacity: 1
           }}
           transition={{
-            scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+            scale: {
+              duration: state === 'idle' ? 5 : 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            },
             opacity: { duration: 1 }
           }}
           className="relative"
@@ -237,16 +245,28 @@ export default function App() {
           }}
         >
           {/* Square border with magical glow - EXACTLY match dot path */}
-          <div
+          <motion.div
             className="absolute"
+            animate={{
+              boxShadow: state === 'idle'
+                ? [
+                    '0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px rgba(255, 255, 255, 0.6)',
+                    '0 0 40px rgba(255, 255, 255, 1), 0 0 80px rgba(255, 255, 255, 0.8)',
+                    '0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px rgba(255, 255, 255, 0.6)'
+                  ]
+                : '0 0 30px rgba(255, 255, 255, 1), 0 0 60px rgba(255, 255, 255, 0.8)'
+            }}
+            transition={{
+              boxShadow: {
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }
+            }}
             style={{
               width: '100%',
               height: '100%',
               border: '12px solid #FFFFFF',
-              boxShadow: `
-                0 0 30px rgba(255, 255, 255, 1),
-                0 0 60px rgba(255, 255, 255, 0.8)
-              `,
             }}
           />
 
