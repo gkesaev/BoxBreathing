@@ -245,7 +245,7 @@
     }
 
     /* Completion state */
-    .completion {
+    .completion:not(.hidden) {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -321,7 +321,7 @@
       <div class="completion-emoji">✨</div>
       <h2 class="completion-title">Well done</h2>
       <p class="completion-text">Take a moment to notice how you feel.</p>
-      <button class="btn">Restart</button>
+      <button class="btn" id="restartBtn">Restart</button>
     </div>
   </div>
 
@@ -341,6 +341,7 @@
     const centerContent = document.getElementById('centerContent');
     const startBtn = document.getElementById('startBtn');
     const completion = document.getElementById('completion');
+    const restartBtn = document.getElementById('restartBtn');
 
     // Create particles
     const particlesContainer = document.getElementById('particles');
@@ -471,7 +472,7 @@
     }
 
     startBtn.addEventListener('click', startInitialCountdown);
-    completion.querySelector('.btn').addEventListener('click', restart);
+    restartBtn.addEventListener('click', restart);
   </script>
 </body>
 </html>
