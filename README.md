@@ -1,11 +1,14 @@
+# Box Breathing App
 
-  # Box Breathing App Spec
+A simple, zero-dependency breathing exercise app. Follow the animated dot around the square border while breathing in sync.
 
-  This is a code bundle for Box Breathing App Spec. The original project is available at https://www.figma.com/design/XIW8nUMrAiPsukbFpL5d67/Box-Breathing-App-Spec.
+## Features
 
-  ## Running the code
+- 3 rounds of box breathing (Inhale → Hold → Exhale → Hold)
+- 4 seconds per side
+- Animated background effects and particles
+- No build step required
 
-  Run `npm i` to install the dependencies.
+## Running the app
 
-  Run `npm run dev` to start the development server.
-  
+Simply open `index.html` in any browser. No installation needed.
