@@ -13,9 +13,7 @@
 
     body {
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      height: 100vh;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       background: linear-gradient(135deg, #581c87, #1e3a8a, #0f766e);
       position: relative;
@@ -105,12 +103,14 @@
 
     /* Main content */
     .container {
-      position: relative;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       z-index: 10;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2rem;
     }
 
     /* Square container */
@@ -118,19 +118,34 @@
       width: 500px;
       height: 500px;
       position: relative;
-      animation: containerPulse 5s ease-in-out infinite;
       opacity: 0;
       animation: fadeIn 1s ease-out forwards;
-    }
-
-    @keyframes containerPulse {
-      0%, 100% { transform: scale(0.95); }
-      50% { transform: scale(1.05); }
     }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: scale(0.8); }
       to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Breathing animation states */
+    .square-container.breathing {
+      transition: transform 4s linear;
+    }
+
+    .square-container.inhale {
+      transform: scale(1.15);
+    }
+
+    .square-container.hold-full {
+      transform: scale(1.15);
+    }
+
+    .square-container.exhale {
+      transform: scale(1);
+    }
+
+    .square-container.hold-empty {
+      transform: scale(1);
     }
 
     /* Square border */
@@ -221,13 +236,31 @@
       cursor: pointer;
       box-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
       transition: all 0.3s ease;
+    }
+
+    #startBtn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
       animation: fadeInUp 1s ease-out 0.5s forwards;
       opacity: 0;
     }
 
     @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    #startBtn:hover {
+      transform: translate(-50%, -50%) scale(1.05);
+      box-shadow: 0 0 40px rgba(6, 182, 212, 0.5);
+      background: linear-gradient(to right, #0891b2, #7e22ce);
+    }
+
+    #startBtn:active {
+      transform: translate(-50%, -50%) scale(0.98);
     }
 
     .btn:hover {
@@ -245,12 +278,27 @@
     }
 
     /* Completion state */
+    .completion {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 15;
+      pointer-events: none;
+    }
+
     .completion:not(.hidden) {
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 1.5rem;
       animation: fadeInUp 1s ease-out forwards;
+    }
+
+    .completion .btn {
+      position: static;
+      pointer-events: auto;
     }
 
     .completion-emoji {
@@ -312,16 +360,14 @@
       <div class="square">
         <div class="dot" id="dot"></div>
         <div class="center-content" id="centerContent"></div>
+        <button class="btn" id="startBtn">Start</button>
+        <div class="completion hidden" id="completion">
+          <div class="completion-emoji">✨</div>
+          <h2 class="completion-title">Well done</h2>
+          <p class="completion-text">Take a moment to notice how you feel.</p>
+          <button class="btn" id="restartBtn">Restart</button>
+        </div>
       </div>
-    </div>
-
-    <button class="btn" id="startBtn">Start</button>
-
-    <div class="completion hidden" id="completion">
-      <div class="completion-emoji">✨</div>
-      <h2 class="completion-title">Well done</h2>
-      <p class="completion-text">Take a moment to notice how you feel.</p>
-      <button class="btn" id="restartBtn">Restart</button>
     </div>
   </div>
 
@@ -342,6 +388,7 @@
     const startBtn = document.getElementById('startBtn');
     const completion = document.getElementById('completion');
     const restartBtn = document.getElementById('restartBtn');
+    const squareContainer = document.querySelector('.square-container');
 
     // Create particles
     const particlesContainer = document.getElementById('particles');
@@ -410,8 +457,31 @@
       animateBreathing();
     }
 
+    function updateSquareBreathing(side) {
+      // Remove all breathing classes
+      squareContainer.classList.remove('inhale', 'hold-full', 'exhale', 'hold-empty');
+      squareContainer.classList.add('breathing');
+
+      // Add appropriate class based on current side
+      switch(side) {
+        case 0: // Inhale
+          squareContainer.classList.add('inhale');
+          break;
+        case 1: // Hold (full)
+          squareContainer.classList.add('hold-full');
+          break;
+        case 2: // Exhale
+          squareContainer.classList.add('exhale');
+          break;
+        case 3: // Hold (empty)
+          squareContainer.classList.add('hold-empty');
+          break;
+      }
+    }
+
     function animateBreathing() {
       const startTime = Date.now();
+      updateSquareBreathing(currentSide);
 
       function update() {
         if (state !== 'breathing') return;
@@ -456,6 +526,7 @@
       dot.classList.remove('active');
       centerContent.innerHTML = '';
       completion.classList.remove('hidden');
+      squareContainer.classList.remove('breathing', 'inhale', 'hold-full', 'exhale', 'hold-empty');
     }
 
     function restart() {
@@ -466,6 +537,7 @@
       centerContent.innerHTML = '';
       completion.classList.add('hidden');
       startBtn.classList.remove('hidden');
+      squareContainer.classList.remove('breathing', 'inhale', 'hold-full', 'exhale', 'hold-empty');
       if (animationFrame) {
         cancelAnimationFrame(animationFrame);
       }
