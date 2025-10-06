@@ -293,12 +293,17 @@
       align-items: center;
       justify-content: center;
       gap: 1.5rem;
-      animation: fadeInUp 1s ease-out forwards;
+      animation: completionFadeIn 1s ease-out forwards;
     }
 
     .completion .btn {
       position: static;
       pointer-events: auto;
+    }
+
+    @keyframes completionFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
     .completion-emoji {
@@ -316,11 +321,13 @@
       font-weight: 300;
       color: rgb(165, 243, 252);
       text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+      text-align: center;
     }
 
     .completion-text {
       color: rgba(165, 243, 252, 0.8);
       line-height: 1.625;
+      text-align: center;
     }
 
     /* Initial countdown styles */
