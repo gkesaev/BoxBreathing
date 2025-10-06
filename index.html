@@ -412,6 +412,68 @@
         transition: none !important;
       }
     }
+
+    /* Info button (bottom-right) and modal styles */
+    .info-btn {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      z-index: 30;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg,#06b6d4,#9333ea);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .info-btn:focus { outline: 3px solid rgba(165,243,252,0.35); outline-offset: 3px; }
+    .info-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.3); }
+
+    .info-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      padding: 1.25rem;
+    }
+    .info-modal-overlay.open { display: flex; }
+
+    .info-modal {
+      background: linear-gradient(180deg, rgba(8,10,25,0.95), rgba(10,14,32,0.92));
+      color: #e6f7fb;
+      max-width: 680px;
+      width: 100%;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 20px 60px rgba(4,7,25,0.6);
+      max-height: 84vh;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .info-modal h3 { margin-bottom: 0.5rem; font-weight: 600; color: #c7f9ff; }
+    .info-modal p { color: rgba(231, 250, 253, 0.92); line-height: 1.5; margin-bottom: 0.75rem; }
+    .info-modal .actions { display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.5rem; }
+    .info-modal .close-btn {
+      background: transparent;
+      color: #d9faff;
+      border: 1px solid rgba(217,250,255,0.08);
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .info-btn, .info-modal, .info-modal-overlay { transition: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -443,6 +505,24 @@
         </div>
       </div>
       <div class="dot" id="dot"></div>
+    </div>
+  </div>
+
+  <!-- Info button (opens explanation modal) -->
+  <button id="infoBtn" class="info-btn" aria-label="About box breathing" aria-haspopup="dialog" aria-controls="infoModal" aria-expanded="false">
+    ?
+  </button>
+
+  <!-- Explanation modal -->
+  <div id="infoModalOverlay" class="info-modal-overlay" role="presentation">
+    <div id="infoModal" class="info-modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle" tabindex="-1">
+      <h3 id="infoTitle">What is box breathing and why it helps</h3>
+      <p>Box breathing is a simple, evidence-backed breathing technique: inhale for 4 seconds, hold for 4, exhale for 4, hold for 4. Repeating this cycle helps activate the parasympathetic nervous system, which can lower heart rate and reduce stress.</p>
+      <p>Regular practice can improve calmness, focus, and emotional regulation. It's safe, easy to do anywhere, and can be combined with mindfulness to deepen benefits.</p>
+      <p>How to try it: Sit comfortably, follow the 4-4-4-4 pattern with slow, even breaths, and repeat for a few minutes. Stop if you feel lightheaded.</p>
+      <div class="actions">
+        <button id="closeInfoBtn" class="close-btn">Close</button>
+      </div>
     </div>
   </div>
 
@@ -625,6 +705,56 @@
 
     startBtn.addEventListener('click', startInitialCountdown);
     restartBtn.addEventListener('click', restart);
+
+    // Info modal behavior: accessible open/close, Esc to close, click outside to close, basic focus trap
+    (function () {
+      const infoBtn = document.getElementById('infoBtn');
+      const overlay = document.getElementById('infoModalOverlay');
+      const modal = document.getElementById('infoModal');
+      const closeBtn = document.getElementById('closeInfoBtn');
+      let lastFocused = null;
+
+      function getFocusable() {
+        return modal.querySelectorAll('a, button, textarea, input, select, [tabindex]:not([tabindex="-1"])');
+      }
+
+      function openModal() {
+        lastFocused = document.activeElement;
+        overlay.classList.add('open');
+        infoBtn.setAttribute('aria-expanded', 'true');
+        modal.focus();
+        document.addEventListener('keydown', onKeyDown);
+      }
+
+      function closeModal() {
+        overlay.classList.remove('open');
+        infoBtn.setAttribute('aria-expanded', 'false');
+        if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+        document.removeEventListener('keydown', onKeyDown);
+      }
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape') { closeModal(); return; }
+        if (e.key === 'Tab') {
+          const focusables = Array.from(getFocusable());
+          if (focusables.length === 0) { e.preventDefault(); return; }
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      }
+
+      overlay.addEventListener('click', (ev) => {
+        if (ev.target === overlay) closeModal();
+      });
+      infoBtn.addEventListener('click', openModal);
+      closeBtn.addEventListener('click', closeModal);
+      // allow keyboard opening (Enter/Space)
+      infoBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(); }
+      });
+    }());
   </script>
 </body>
 </html>
