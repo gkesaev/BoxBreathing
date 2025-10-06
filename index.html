@@ -581,6 +581,8 @@
     let currentRound = 0;
     let currentSide = 0;
     let animationFrame = null;
+    let animationStartTime = null; // timestamp (ms) when the current side animation started
+    let isBreathing = false; // true while the breathing animation is running
 
     const dot = document.getElementById('dot');
     const centerContent = document.getElementById('centerContent');
@@ -648,8 +650,19 @@
       resizeTimer = setTimeout(() => {
         updateLayoutVariables();
         createParticles();
-        // reposition dot to current state so it doesn't jump
-        updateDotPosition(currentSide, Math.min(1, (Date.now() % SIDE_DURATION) / SIDE_DURATION));
+        // reposition dot to current state so it doesn't jump.
+        // Use the real animation start time/progress when available instead of Date.now() % SIDE_DURATION
+        if (isBreathing && animationStartTime) {
+          const progress = Math.max(0, Math.min(1, (Date.now() - animationStartTime) / SIDE_DURATION));
+          updateDotPosition(currentSide, progress);
+        } else if (animationStartTime) {
+          // If we have a start time but not flagged breathing (edge case), still compute a clamped progress
+          const progress = Math.max(0, Math.min(1, (Date.now() - animationStartTime) / SIDE_DURATION));
+          updateDotPosition(currentSide, progress);
+        } else {
+          // fallback: place dot at beginning of current side
+          updateDotPosition(currentSide, 0);
+        }
       }, 120);
     }
     window.addEventListener('resize', onResize);
@@ -732,13 +745,16 @@
     }
 
     function animateBreathing() {
+      // mark that breathing is active and remember when this side started
+      isBreathing = true;
       const startTime = Date.now();
+      animationStartTime = startTime;
       updateSquareBreathing(currentSide);
 
       function update() {
         if (state !== 'breathing') return;
 
-        const elapsed = Date.now() - startTime;
+  const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / SIDE_DURATION, 1);
         const sideCountdown = Math.max(1, 4 - Math.floor(progress * 4));
 
@@ -763,6 +779,8 @@
 
           currentSide = nextSide;
           currentRound = nextRound;
+          // start next side: update animationStartTime so onResize and reposition use correct base
+          animationStartTime = Date.now();
           animateBreathing();
           return;
         }
@@ -775,6 +793,9 @@
 
     function showCompletion() {
       state = 'complete';
+      // clear animation state
+      isBreathing = false;
+      animationStartTime = null;
       dot.classList.remove('active');
       centerContent.innerHTML = '';
       completion.classList.remove('hidden');
@@ -783,6 +804,9 @@
 
     function restart() {
       state = 'idle';
+      // clear animation state
+      isBreathing = false;
+      animationStartTime = null;
       currentRound = 0;
       currentSide = 0;
       dot.classList.remove('active');
