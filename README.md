@@ -12,3 +12,7 @@ A simple, zero-dependency breathing exercise app. Follow the animated dot around
 ## Running the app
 
 Simply open `index.html` in any browser. No installation needed.
+
+## Live demo
+
+Try the app online: https://gkesaev.github.io/BoxBreathing/
