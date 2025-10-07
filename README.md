@@ -16,3 +16,9 @@ Simply open `index.html` in any browser. No installation needed.
 ## Live demo
 
 Try the app online: https://gkesaev.github.io/BoxBreathing/
+
+Preview (screenshot):
+
+![Box Breathing demo screenshot](./screenshot.png "Box Breathing preview")
+
+The screenshot above shows the app's colorful, animated UI — open the live demo link to try the interactive version.
