@@ -503,7 +503,7 @@
       .square-container.exhale,
       .square-container.hold-empty { transform: scale(1) !important; }
       .dot { animation: none !important; display: block !important; }
-      .info-btn, .audio-btn { transition: none !important; }
+      .info-btn, .audio-btn, .restart-exercise-btn { transition: none !important; }
       .audio-btn[aria-pressed="true"] #audioWaves { animation: none !important; }
     }
 
@@ -560,12 +560,35 @@
       transition: transform .18s ease, box-shadow .18s ease;
     }
 
-    .info-btn:focus, .audio-btn:focus {
+    .restart-exercise-btn {
+      position: fixed;
+      right: 1rem;
+      bottom: 9rem;
+      z-index: 30;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #06b6d4, #9333ea);
+      color: white;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .restart-exercise-btn.show {
+      display: inline-flex;
+    }
+
+    .info-btn:focus, .audio-btn:focus, .restart-exercise-btn:focus {
       outline: 3px solid rgba(165,243,252,0.35);
       outline-offset: 3px;
     }
 
-    .info-btn:hover, .audio-btn:hover {
+    .info-btn:hover, .audio-btn:hover, .restart-exercise-btn:hover {
       transform: translateY(-3px);
       box-shadow: 0 10px 24px rgba(0,0,0,0.3);
     }
@@ -631,7 +654,7 @@
       cursor: pointer;
     }
     @media (prefers-reduced-motion: reduce) {
-      .info-btn, .info-modal, .info-modal-overlay { transition: none !important; }
+      .info-btn, .info-modal, .info-modal-overlay, .restart-exercise-btn { transition: none !important; }
     }
   </style>
 </head>
@@ -667,6 +690,16 @@
       <div class="dot" id="dot"></div>
     </div>
   </div>
+
+  <!-- Restart button (shown during exercise) -->
+  <button id="restartExerciseBtn" class="restart-exercise-btn" aria-label="Restart exercise">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="1 4 1 10 7 10"></polyline>
+      <polyline points="23 20 23 14 17 14"></polyline>
+      <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+    </svg>
+    <span class="sr-only">Restart exercise</span>
+  </button>
 
   <!-- Audio button -->
   <button id="audioBtn" class="audio-btn" aria-label="Toggle background music" aria-pressed="true">
@@ -947,6 +980,7 @@
     const startCaption = document.getElementById('startCaption');
     const completion = document.getElementById('completion');
     const restartBtn = document.getElementById('restartBtn');
+    const restartExerciseBtn = document.getElementById('restartExerciseBtn');
     const squareContainer = document.querySelector('.square-container');
     const squareEl = document.querySelector('.square');
     const audioBtn = document.getElementById('audioBtn');
@@ -1076,6 +1110,7 @@
       state = 'countdown';
       startBtn.classList.add('hidden');
       if (startCaption) startCaption.classList.add('hidden');
+      restartExerciseBtn.classList.add('show');
       countdown = 3;
       if (countdownTimer) { clearTimeout(countdownTimer); countdownTimer = null; }
 
@@ -1189,6 +1224,7 @@
       dot.classList.remove('active');
       centerContent.innerHTML = '';
       completion.classList.remove('hidden');
+      restartExerciseBtn.classList.remove('show');
       squareContainer.classList.remove('breathing', 'inhale', 'hold-full', 'exhale', 'hold-empty');
 
       // Keep audio playing after session completes (don't stop it)
@@ -1204,6 +1240,7 @@
       dot.classList.remove('active');
       centerContent.innerHTML = '';
       completion.classList.add('hidden');
+      restartExerciseBtn.classList.remove('show');
       startBtn.classList.remove('hidden');
 
       if (startCaption) {
@@ -1234,7 +1271,13 @@
 
       startInitialCountdown();
     });
+
     restartBtn.addEventListener('click', restart);
+
+    restartExerciseBtn.addEventListener('click', () => {
+      provideHapticFeedback();
+      restart();
+    });
 
     // Audio toggle functionality
     audioBtn.addEventListener('click', () => {
