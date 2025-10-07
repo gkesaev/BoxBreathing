@@ -503,6 +503,8 @@
       .square-container.exhale,
       .square-container.hold-empty { transform: scale(1) !important; }
       .dot { animation: none !important; display: block !important; }
+      .info-btn, .audio-btn { transition: none !important; }
+      .audio-btn[aria-pressed="true"] #audioWaves { animation: none !important; }
     }
 
     /* Screen-reader only helper */
@@ -537,8 +539,60 @@
       cursor: pointer;
       transition: transform .18s ease, box-shadow .18s ease;
     }
-    .info-btn:focus { outline: 3px solid rgba(165,243,252,0.35); outline-offset: 3px; }
-    .info-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.3); }
+
+    /* Audio button (above info button) */
+    .audio-btn {
+      position: fixed;
+      right: 1rem;
+      bottom: 5rem;
+      z-index: 30;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #06b6d4, #9333ea);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .info-btn:focus, .audio-btn:focus {
+      outline: 3px solid rgba(165,243,252,0.35);
+      outline-offset: 3px;
+    }
+
+    .info-btn:hover, .audio-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.3);
+    }
+
+    .audio-btn[aria-pressed="false"] #audioWaves {
+      opacity: 0.3;
+    }
+
+    .audio-btn[aria-pressed="false"] #muteSlash {
+      display: block !important;
+      stroke: #ff4444;
+      opacity: 0.95;
+    }
+
+    .audio-btn[aria-pressed="true"] #audioWaves {
+      opacity: 1;
+      animation: audioWaves 1.5s ease-in-out infinite;
+    }
+
+    .audio-btn[aria-pressed="true"] #muteSlash {
+      display: none !important;
+    }
+
+    @keyframes audioWaves {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
 
     .info-modal-overlay {
       position: fixed;
@@ -614,6 +668,16 @@
     </div>
   </div>
 
+  <!-- Audio button -->
+  <button id="audioBtn" class="audio-btn" aria-label="Toggle background music" aria-pressed="true">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path id="audioIcon" d="M11 5L6 9H2v6h4l5 4V5z"></path>
+      <path id="audioWaves" d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+      <line id="muteSlash" x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display: none;"></line>
+    </svg>
+    <span class="sr-only">Background music</span>
+  </button>
+
   <!-- Info button (opens explanation modal) -->
   <button id="infoBtn" class="info-btn" aria-label="About box breathing" aria-haspopup="dialog" aria-controls="infoModal" aria-expanded="false">
     <span aria-hidden="true">?</span>
@@ -627,6 +691,7 @@
       <p>Box breathing is a simple, evidence-backed breathing technique: inhale for 4 seconds, hold for 4, exhale for 4, hold for 4. Repeating this cycle helps activate the parasympathetic nervous system, which can lower heart rate and reduce stress.</p>
       <p>Regular practice can improve calmness, focus, and emotional regulation. It's safe, easy to do anywhere, and can be combined with mindfulness to deepen benefits.</p>
       <p>How to try it: Sit comfortably, follow the 4-4-4-4 pattern with slow, even breaths, and repeat for a few minutes. Stop if you feel lightheaded.</p>
+      <p><strong>Audio:</strong> Use the music button to enable calming background tones that sync with your breathing rhythm. Press 'M' to quickly toggle audio on/off.</p>
       <div class="actions">
         <button id="closeInfoBtn" class="close-btn">Close</button>
       </div>
@@ -634,6 +699,229 @@
   </div>
 
   <script>
+    // Procedural audio generation for breathing exercise
+    class BreathingAudio {
+      constructor() {
+        this.audioContext = null;
+        this.masterGain = null;
+        this.isPlaying = false;
+        this.oscillators = [];
+        this.stopTimeout = null;
+        this.isStarting = false;
+      }
+
+      init() {
+        if (!this.audioContext) {
+          try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.masterGain = this.audioContext.createGain();
+            this.masterGain.connect(this.audioContext.destination);
+            this.masterGain.gain.value = 0.35; // Increased volume for better presence
+          } catch (e) {
+            console.warn('Web Audio API not supported');
+            return false;
+          }
+        }
+        return true;
+      }
+
+      // Create calming ocean-like white noise
+      async start() {
+        if (!this.init()) return;
+        if (this.isPlaying || this.isStarting) return; // Already playing or starting
+
+        this.isStarting = true;
+
+        // Clear any pending stop timeout
+        if (this.stopTimeout) {
+          clearTimeout(this.stopTimeout);
+          this.stopTimeout = null;
+        }
+
+        // Resume audio context if suspended (required on mobile)
+        if (this.audioContext.state === 'suspended') {
+          try {
+            await this.audioContext.resume();
+          } catch (e) {
+            console.warn('Failed to resume audio context:', e);
+            this.isStarting = false;
+            return;
+          }
+        }
+
+        // Clear any existing oscillators first (in case of rapid toggle)
+        this.oscillators.forEach(({ osc }) => {
+          try {
+            osc.stop();
+          } catch (e) {
+            // Already stopped
+          }
+        });
+        this.oscillators = [];
+
+        // Set flags after cleanup
+        this.isPlaying = true;
+        this.isStarting = false;
+
+        // Smooth fade in
+        this.masterGain.gain.cancelScheduledValues(this.audioContext.currentTime);
+        this.masterGain.gain.setValueAtTime(0.001, this.audioContext.currentTime);
+        this.masterGain.gain.exponentialRampToValueAtTime(0.35, this.audioContext.currentTime + 2);
+
+        // Create ocean-like white noise using multiple filtered noise sources
+        this.createOceanNoise();
+        this.createWaveSurges();
+
+        // Add subtle breathing modulation
+        this.addBreathingModulation();
+      }
+
+      createOceanNoise() {
+        if (!this.audioContext) return;
+
+        // Create pink noise buffer (more natural than white noise)
+        const bufferSize = this.audioContext.sampleRate * 2; // 2 seconds of noise
+        const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+
+        // Generate PINK noise (more natural frequency distribution)
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+          output[i] *= 0.11; // Scale down
+          b6 = white * 0.115926;
+        }
+
+        // Create multiple filtered noise sources for realistic ocean layers
+        this.createFilteredNoise(noiseBuffer, 250, 0.14);   // Deep wave rumbles - increased
+        this.createFilteredNoise(noiseBuffer, 1000, 0.08);  // Water movement - increased
+        this.createFilteredNoise(noiseBuffer, 3000, 0.05);  // Foam and bubbles - increased
+        this.createFilteredNoise(noiseBuffer, 6000, 0.025); // High frequency sparkle - increased
+      }
+
+      createFilteredNoise(noiseBuffer, cutoffFreq, volume) {
+        if (!this.audioContext) return;
+
+        const noiseSource = this.audioContext.createBufferSource();
+        const filter = this.audioContext.createBiquadFilter();
+        const gainNode = this.audioContext.createGain();
+
+        noiseSource.buffer = noiseBuffer;
+        noiseSource.loop = true;
+
+        // Low-pass filter to shape the noise
+        filter.type = 'lowpass';
+        filter.frequency.value = cutoffFreq;
+        filter.Q.value = 1;
+
+        gainNode.gain.value = volume;
+
+        // Connect: noise -> filter -> gain -> master
+        noiseSource.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.masterGain);
+
+        noiseSource.start();
+        this.oscillators.push({ osc: noiseSource, gain: gainNode, filter });
+      }
+
+      createWaveSurges() {
+        if (!this.audioContext) return;
+        
+        // Create a slow oscillator that makes the volume "surge" like waves
+        const surgeLFO = this.audioContext.createOscillator();
+        const surgeGain = this.audioContext.createGain();
+        
+        surgeLFO.type = 'sine';
+        surgeLFO.frequency.value = 0.12; // ~8 second wave cycle
+        surgeGain.gain.value = 0.08; // Noticeable but not overwhelming
+        
+        surgeLFO.connect(surgeGain);
+        surgeGain.connect(this.masterGain.gain);
+        
+        surgeLFO.start();
+        this.oscillators.push({ osc: surgeLFO, gain: surgeGain });
+      }
+
+      addBreathingModulation() {
+        if (!this.audioContext) return;
+        
+        // Create subtle volume modulation that breathes with the rhythm
+        const lfo = this.audioContext.createOscillator();
+        const lfoGain = this.audioContext.createGain();
+        
+        lfo.type = 'sine';
+        lfo.frequency.value = 1/16; // 16 second cycle (matches 4-4-4-4)
+        lfoGain.gain.value = 0.01; // Very subtle modulation depth (reduced from 0.02)
+        
+        // Connect LFO to master gain for breathing effect
+        lfo.connect(lfoGain);
+        lfoGain.connect(this.masterGain.gain);
+        
+        lfo.start();
+        this.oscillators.push({ osc: lfo, gain: lfoGain });
+      }
+
+      stop() {
+        if (!this.audioContext) return;
+        if (!this.isPlaying && !this.isStarting) return;
+
+        // Set flags immediately to prevent race conditions
+        this.isPlaying = false;
+        this.isStarting = false;
+
+        // Clear any existing stop timeout
+        if (this.stopTimeout) {
+          clearTimeout(this.stopTimeout);
+        }
+
+        // Smooth fade out
+        const now = this.audioContext.currentTime;
+        this.masterGain.gain.cancelScheduledValues(now);
+        this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+        this.masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+
+        // Stop oscillators after fade completes
+        this.stopTimeout = setTimeout(() => {
+          this.oscillators.forEach(({ osc }) => {
+            try {
+              osc.stop();
+            } catch (e) {
+              // Already stopped
+            }
+          });
+          this.oscillators = [];
+          this.stopTimeout = null;
+        }, 1600);
+      }
+
+      setVolume(value) {
+        if (this.masterGain) {
+          this.masterGain.gain.value = value;
+        }
+      }
+
+      toggle() {
+        if (this.isPlaying) {
+          this.stop();
+        } else {
+          this.start();
+        }
+      }
+    }
+
+    // Initialize audio system
+    const breathingAudio = new BreathingAudio();
+    let audioEnabled = true; // Start with audio enabled
+    let audioStartAttempted = false; // Track if we've tried to start audio
+
     // Responsive layout: compute sizes from DOM instead of fixed constants
     let SQUARE_SIZE = 500;
     let BORDER = 16;
@@ -661,6 +949,7 @@
     const restartBtn = document.getElementById('restartBtn');
     const squareContainer = document.querySelector('.square-container');
     const squareEl = document.querySelector('.square');
+    const audioBtn = document.getElementById('audioBtn');
 
     // Create particles (count adjusts for small screens)
     const particlesContainer = document.getElementById('particles');
@@ -812,6 +1101,11 @@
       currentSide = 0;
       dot.classList.add('active');
 
+      // Start audio if enabled (start() has its own guard against multiple calls)
+      if (audioEnabled) {
+        breathingAudio.start();
+      }
+
       animateBreathing();
     }
 
@@ -896,6 +1190,8 @@
       centerContent.innerHTML = '';
       completion.classList.remove('hidden');
       squareContainer.classList.remove('breathing', 'inhale', 'hold-full', 'exhale', 'hold-empty');
+
+      // Keep audio playing after session completes (don't stop it)
     }
 
     function restart() {
@@ -923,13 +1219,43 @@
       if (animationFrame) {
         cancelAnimationFrame(animationFrame);
       }
+
+      // Keep audio playing after restart (don't stop it)
     }
 
     startBtn.addEventListener('click', (e) => {
       provideHapticFeedback();
+
+      // Start audio on first user interaction if enabled
+      if (audioEnabled) {
+        breathingAudio.start();
+        audioStartAttempted = true;
+      }
+
       startInitialCountdown();
     });
     restartBtn.addEventListener('click', restart);
+
+    // Audio toggle functionality
+    audioBtn.addEventListener('click', () => {
+      audioEnabled = !audioEnabled;
+      audioBtn.setAttribute('aria-pressed', audioEnabled);
+      audioStartAttempted = true;
+
+      if (audioEnabled) {
+        breathingAudio.start();
+      } else {
+        breathingAudio.stop();
+      }
+    });    // Keyboard shortcut: 'M' key to toggle audio
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'm' || e.key === 'M') {
+        if (document.activeElement === document.body) {
+          e.preventDefault();
+          audioBtn.click();
+        }
+      }
+    });
 
     // Recompute layout when page loads (some mobile browsers need a tick)
     window.addEventListener('load', () => {
@@ -938,6 +1264,9 @@
         updateLayoutVariables();
         // ensure dot starts off at the beginning corner
         updateDotPosition(0, 0);
+        
+        // Note: Modern browsers require user interaction to start audio
+        // Audio will start when user clicks Start or toggles audio button
       }, 60);
     });
 
