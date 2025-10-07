@@ -497,6 +497,25 @@
         animation: none !important;
         transition: none !important;
       }
+      .square-container.breathing { transition: none !important; }
+      .square-container.inhale,
+      .square-container.hold-full,
+      .square-container.exhale,
+      .square-container.hold-empty { transform: scale(1) !important; }
+      .dot { animation: none !important; display: block !important; }
+    }
+
+    /* Screen-reader only helper */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border-width: 0;
     }
 
     /* Info button (bottom-right) and modal styles */
@@ -597,7 +616,8 @@
 
   <!-- Info button (opens explanation modal) -->
   <button id="infoBtn" class="info-btn" aria-label="About box breathing" aria-haspopup="dialog" aria-controls="infoModal" aria-expanded="false">
-    ?
+    <span aria-hidden="true">?</span>
+    <span class="sr-only">Information about box breathing</span>
   </button>
 
   <!-- Explanation modal -->
@@ -626,6 +646,7 @@
 
     let state = 'idle';
     let countdown = 3;
+    let countdownTimer = null;
     let currentRound = 0;
     let currentSide = 0;
     let animationFrame = null;
@@ -695,7 +716,11 @@
     }
 
   // Initial layout compute (run after DOM is parsed)
-  document.addEventListener('DOMContentLoaded', () => updateLayoutVariables());
+  document.addEventListener('DOMContentLoaded', () => {
++  updateLayoutVariables();
++  // position the dot at the initial corner so it doesn't jump on first paint
++  updateDotPosition(0, 0);
+    });
 
     // Keep layout variables updated on resize/orientation; use a debounced resize handler
     let resizeTimer = null;
@@ -754,21 +779,29 @@
       dot.style.transform = 'translate(-50%, -50%)';
     }
 
+    function provideHapticFeedback() {
+      if (navigator.vibrate) navigator.vibrate(10);
+    }
+
     function startInitialCountdown() {
       state = 'countdown';
       startBtn.classList.add('hidden');
       if (startCaption) startCaption.classList.add('hidden');
       countdown = 3;
+      if (countdownTimer) { clearTimeout(countdownTimer); countdownTimer = null; }
 
       function countdownTick() {
+        if (state !== 'countdown') return; // stop if state changed
         if (countdown > 0) {
           centerContent.innerHTML = `<div class="initial-countdown">${countdown}</div>`;
           countdown--;
-          setTimeout(countdownTick, 800);
+          countdownTimer = setTimeout(countdownTick, 800);
         } else {
+          countdownTimer = null;
           startBreathing();
         }
       }
+
       countdownTick();
     }
 
@@ -876,14 +909,26 @@
       centerContent.innerHTML = '';
       completion.classList.add('hidden');
       startBtn.classList.remove('hidden');
-      if (startCaption) startCaption.classList.remove('hidden');
+
+      if (startCaption) {
+        startCaption.classList.remove('hidden');
+      }
       squareContainer.classList.remove('breathing', 'inhale', 'hold-full', 'exhale', 'hold-empty');
+
+      if (countdownTimer) {
+        clearTimeout(countdownTimer);
+        countdownTimer = null;
+      }
+
       if (animationFrame) {
         cancelAnimationFrame(animationFrame);
       }
     }
 
-    startBtn.addEventListener('click', startInitialCountdown);
+    startBtn.addEventListener('click', (e) => {
+      provideHapticFeedback();
+      startInitialCountdown();
+    });
     restartBtn.addEventListener('click', restart);
 
     // Recompute layout when page loads (some mobile browsers need a tick)
